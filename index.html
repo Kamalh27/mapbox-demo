@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapbox for One Home</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.css' rel='stylesheet' />  
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.css" type="text/css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id='map'></div>
+    <div class='map-overlay' id='legend'>
+        <h5>Legend</h5>
+    </div>
+
+    <div class="btn-group" id="menu">
+        <button id="streets-v11" type="button" class="btn btn-light" name="rtoggle">Streets</button>
+        <button id="satellite-v9" type="button" class="btn btn-light" name="rtoggle">Satellite</button>
+        <button id="light-v10" type="button" class="btn btn-light" name="rtoggle">Light</button>
+        <button id="dark-v10" type="button" class="btn btn-light" name="rtoggle">Dark</button>  
+        <button id="outdoors-v11" type="button" class="btn btn-light" name="rtoggle">Outdoors</button>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Load the `mapbox-gl-geocoder` plugin. -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.min.js"></script>
+    
+    <!-- Promise polyfill script is required -->
+    <!-- to use Mapbox GL Geocoder in IE 11. -->
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.auto.min.js"></script>
+    
+    
+    <script>
+
+        mapboxgl.accessToken = 'pk.eyJ1Ijoia2FtYWxoMjciLCJhIjoiY2poYWV5Z2lxMG55bjNjbWZwY29hOW5vYyJ9.r4eS9Ny_02NoZ_DsYQiMVw';
+        
+        var map = new mapboxgl.Map({
+            container: 'map', // container id
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [90.41, 23.75], // starting position
+            zoom: 6 // starting zoom
+        });
+
+        map.on('styledata', function () {
+            map.loadImage(
+                'https://docs.mapbox.com/mapbox-gl-js/assets/custom_marker.png',
+                // Add an image to use as a custom marker
+                function (error, image) {
+                    if (error) throw error;
+                    map.addImage('custom-marker', image);
+            
+                    map.addSource('places', {
+                        'type': 'geojson',
+                        'data': {
+                            'type': 'FeatureCollection',
+                            'features': [
+                                {
+                                    'type': 'Feature',
+                                    'properties': {
+                                        'title': 'Dhaka',
+                                        'description':
+                                        '<p><strong>Dhaka, Bangladesh</strong><br>Dhaka, the capital city of Bangladesh.</p>'+
+                                        '<p><img src="img/bd.jpg" alt="bd" width="200px" height="150px"></p>'
+                                    },
+                                    'geometry': {
+                                        'type': 'Point',
+                                        'coordinates': [90.41, 23.75]
+                                    }
+                                },
+                            ]
+                        }
+                    });
+            
+                    // Add a layer showing the places.
+                    map.addLayer({
+                        'id': 'places',
+                        'type': 'symbol',
+                        'source': 'places',
+                        'layout': {
+                            'icon-image': 'custom-marker',
+                            'icon-allow-overlap': true,
+                            // get the title name from the source's "title" property
+                            'text-field': ['get', 'title'],
+                            'text-font': [
+                                'Open Sans Semibold',
+                                'Arial Unicode MS Bold'
+                            ],
+
+                            'text-offset': [0, 1.25],
+                            'text-anchor': 'top'
+                        },
+                        'paint': {
+                            "text-color": "#0B5345"
+                        }
+                    });
+                }
+            );
+        
+            // Create a popup, but don't add it to the map yet.
+            var popup = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: false
+            });
+        
+            map.on('mouseenter', 'places', function (e) {
+                // Change the cursor style as a UI indicator.
+                map.getCanvas().style.cursor = 'pointer';
+            
+                var coordinates = e.features[0].geometry.coordinates.slice();
+                var description = e.features[0].properties.description;
+                
+                // Ensure that if the map is zoomed out such that multiple
+                // copies of the feature are visible, the popup appears
+                // over the copy being pointed to.
+                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                }
+            
+                // Populate the popup and set its coordinates
+                // based on the feature found.
+                popup.setLngLat(coordinates).setHTML(description).addTo(map);
+            });
+            
+            map.on('mouseleave', 'places', function () {
+                map.getCanvas().style.cursor = '';
+                popup.remove();
+            });
+        });
+
+        map.on('styledata', function() {
+
+            var bgd_url = 'data/bgd.geojson';
+
+            map.addSource('bd', { type: 'geojson', data: bgd_url});
+            // Add a layer showing the places.
+            map.addLayer({
+                'id': 'bd',
+                'type': 'fill',
+                'source': 'bd',
+                'layout': {},
+                'paint': {
+                    'fill-color': '#088',
+                    'fill-opacity': 0.3,
+                    'fill-outline-color': 'black'
+                }
+            });
+
+            map.addLayer({
+                'id': 'bd-highlighted',
+                'type': 'fill',
+                'source': 'bd',
+                'layout': {},
+                'paint': {
+                    'fill-color': '#088',
+                    'fill-opacity': 0.3,
+                    'fill-outline-color': 'black'
+                }
+            });
+
+            // Create a popup, but don't add it to the map yet.
+            var popup = new mapboxgl.Popup({
+                closeButton: false
+            });
+
+            map.on('click', 'bd', function (e) {
+
+                // set bbox as 5px reactangle area around clicked point
+                var bbox = [
+                    [e.point.x - 5, e.point.y - 5],
+                    [e.point.x + 5, e.point.y + 5]
+                ];
+                var features = map.queryRenderedFeatures(bbox, {
+                    layers: ['bd']
+                });
+
+                var filter = features.reduce(
+                    function (memo, feature) {
+                        memo.push(feature.properties.ADM1_EN);
+                        return memo;
+                    },
+                    ['in', 'ADM1_EN']
+                );
+                
+                map.setFilter('bd-highlighted', filter);
+
+                new mapboxgl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML('<br>'+'<h6>Division</h6>'+
+                        '<p>'+e.features[0].properties.ADM1_EN+'</p>')
+                        .addTo(map);
+                
+            });
+
+            // Change the cursor to a pointer when the mouse is over the states layer.
+            map.on('mouseenter', 'bd', function () {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            
+            map.on('mouseleave', 'bd', function () {
+                map.getCanvas().style.cursor = '';
+            });
+
+            // define layer names
+            var layers = [
+                'Bangladesh',
+            ];
+            var colors = [
+                '#088', 
+            ];
+            
+            // create legend
+            for (i = 0; i < layers.length; i++) {
+                var layer = layers[i];
+                var color = colors[i];
+                var item = document.createElement('div');
+                var key = document.createElement('span');
+                key.className = 'legend-key';
+                key.style.backgroundColor = color;
+            
+                var value = document.createElement('span');
+                value.innerHTML = layer;
+                item.appendChild(key);
+                item.appendChild(value);
+                legend.appendChild(item);
+            }
+        });
+
+
+        var layerList = document.getElementById('menu');
+        var buttons = layerList.getElementsByTagName('button');
+ 
+        function switchLayer(layer) {
+            var layerId = layer.target.id;
+            map.setStyle('mapbox://styles/mapbox/' + layerId);
+        }
+ 
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].onclick = switchLayer;
+        }
+
+        // Add the control to the map.
+        map.addControl(
+            new MapboxGeocoder({
+                accessToken: mapboxgl.accessToken,
+                mapboxgl: mapboxgl
+            })
+        ); 
+        
+        // Add zoom and rotation controls to the map.
+        map.addControl(new mapboxgl.NavigationControl());
+        
+        // Add geolocate control to the map.
+        map.addControl(
+            new mapboxgl.GeolocateControl({
+                positionOptions: {
+                    enableHighAccuracy: true
+                },
+                trackUserLocation: true
+            })
+        );
+        map.addControl(new mapboxgl.FullscreenControl());
+        
+    </script>
+</body>
+</html>
